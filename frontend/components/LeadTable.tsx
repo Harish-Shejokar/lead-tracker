@@ -1,13 +1,13 @@
 "use client";
 
-import { Lead } from "@/lib/api";
+import { Lead, LeadStatus, LEAD_STATUSES, formatStatus } from "@/lib/api";
 
 interface LeadTableProps {
   leads: Lead[];
-  onStatusUpdate: (id: number, status: string) => void;
+  onStatusUpdate: (id: number, status: LeadStatus) => void;
 }
 
-const statusColors: Record<string, string> = {
+const statusColors: Record<LeadStatus, string> = {
   NEW: "bg-gray-100 text-gray-800",
   CONTACTED: "bg-blue-50 text-blue-700",
   QUALIFIED: "bg-slate-100 text-slate-700",
@@ -16,10 +16,8 @@ const statusColors: Record<string, string> = {
 };
 
 export default function LeadTable({ leads, onStatusUpdate }: LeadTableProps) {
-  const statuses = ["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "LOST"];
-
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+    <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
       <table className="w-full">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50">
@@ -40,23 +38,24 @@ export default function LeadTable({ leads, onStatusUpdate }: LeadTableProps) {
             >
               <td className="px-6 py-4 text-sm font-medium text-black">{lead.name}</td>
               <td className="px-6 py-4 text-sm text-gray-600">{lead.email}</td>
-              <td className="px-6 py-4 text-sm text-gray-600">{lead.phone || "—"}</td>
+              <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{lead.phone || "—"}</td>
               <td className="px-6 py-4 text-sm">
                 <select
+                  aria-label={`Status for ${lead.name}`}
                   value={lead.status}
-                  onChange={(e) => onStatusUpdate(lead.id, e.target.value)}
+                  onChange={(e) => onStatusUpdate(lead.id, e.target.value as LeadStatus)}
                   className={`px-3 py-2 rounded-md text-sm font-medium border-0 focus:outline-none focus:ring-2 focus:ring-black cursor-pointer transition-all ${
                     statusColors[lead.status] || "bg-gray-100 text-gray-800"
                   }`}
                 >
-                  {statuses.map((s) => (
+                  {LEAD_STATUSES.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {formatStatus(s)}
                     </option>
                   ))}
                 </select>
               </td>
-              <td className="px-6 py-4 text-sm text-gray-600">
+              <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                 {new Date(lead.created_at).toLocaleDateString("en-US", {
                   year: "numeric",
                   month: "short",

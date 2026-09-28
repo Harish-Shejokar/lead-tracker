@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createLead, getLeads, updateLeadStatus } from "@/lib/api";
+import { createLead, formatStatus, getLeads, updateLeadStatus } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -14,13 +14,13 @@ describe("getLeads", () => {
   it("requests all leads when no filters are given", async () => {
     await getLeads();
 
-    expect(fetchMock).toHaveBeenCalledWith(`${API_URL}/api/leads?`);
+    expect(fetchMock.mock.calls[0][0]).toBe(`${API_URL}/api/leads?`);
   });
 
   it("sends search and status as query parameters", async () => {
     await getLeads("john doe", "CONTACTED");
 
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock.mock.calls[0][0]).toBe(
       `${API_URL}/api/leads?search=john+doe&status=CONTACTED`
     );
   });
@@ -59,6 +59,30 @@ describe("createLead", () => {
       createLead({ name: "John Doe", email: "john@example.com", phone: "" })
     ).rejects.toThrow("Failed to create lead");
   });
+
+  it("throws the error message sent by the API", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Email already exists" }),
+    });
+
+    await expect(
+      createLead({ name: "John Doe", email: "john@example.com", phone: "" })
+    ).rejects.toThrow("Email already exists");
+  });
+
+  it("falls back to a generic message when the error body is not JSON", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => {
+        throw new SyntaxError("Unexpected token <");
+      },
+    });
+
+    await expect(
+      createLead({ name: "John Doe", email: "john@example.com", phone: "" })
+    ).rejects.toThrow("Failed to create lead");
+  });
 });
 
 describe("updateLeadStatus", () => {
@@ -76,5 +100,11 @@ describe("updateLeadStatus", () => {
     fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
 
     await expect(updateLeadStatus(7, "LOST")).rejects.toThrow("Failed to update lead");
+  });
+});
+
+describe("formatStatus", () => {
+  it("turns a status code into a readable label", () => {
+    expect(formatStatus("CONTACTED")).toBe("Contacted");
   });
 });

@@ -8,9 +8,9 @@ import { Lead } from "@/lib/api";
 describe("CreateLeadForm", () => {
   async function fillForm(name: string, email: string, phone = "") {
     const user = userEvent.setup();
-    if (name) await user.type(screen.getByPlaceholderText("John Doe"), name);
-    if (email) await user.type(screen.getByPlaceholderText("john@example.com"), email);
-    if (phone) await user.type(screen.getByPlaceholderText("+1 (555) 000-0000"), phone);
+    if (name) await user.type(screen.getByLabelText(/^name/i), name);
+    if (email) await user.type(screen.getByLabelText(/^email/i), email);
+    if (phone) await user.type(screen.getByLabelText(/^phone/i), phone);
     await user.click(screen.getByRole("button", { name: "Create Lead" }));
   }
 
@@ -25,8 +25,9 @@ describe("CreateLeadForm", () => {
       email: "john@example.com",
       phone: "9876543210",
     });
-    expect(screen.getByPlaceholderText<HTMLInputElement>("John Doe").value).toBe("");
-    expect(screen.getByPlaceholderText<HTMLInputElement>("john@example.com").value).toBe("");
+    expect(screen.getByLabelText<HTMLInputElement>(/^name/i).value).toBe("");
+    expect(screen.getByLabelText<HTMLInputElement>(/^email/i).value).toBe("");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("allows phone to be left empty", async () => {
@@ -41,25 +42,26 @@ describe("CreateLeadForm", () => {
   it.each([
     ["name", "", "john@example.com"],
     ["email", "John Doe", ""],
-  ])("does not submit when %s is empty", async (_field, name, email) => {
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    ["name is only spaces", "   ", "john@example.com"],
+  ])("shows an error and does not submit when %s is empty", async (_field, name, email) => {
     const onSubmit = vi.fn();
     render(<CreateLeadForm onSubmit={onSubmit} />);
 
     await fillForm(name, email);
 
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(alertSpy).toHaveBeenCalledWith("Name and email are required");
+    expect(screen.getByRole("alert").textContent).toBe("Name and email are required");
   });
 
-  it("keeps the entered values when submitting fails", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+  it("shows the error and keeps the entered values when submitting fails", async () => {
     const onSubmit = vi.fn().mockRejectedValue(new Error("Email already exists"));
     render(<CreateLeadForm onSubmit={onSubmit} />);
 
     await fillForm("John Doe", "john@example.com");
 
-    expect(screen.getByPlaceholderText<HTMLInputElement>("John Doe").value).toBe("John Doe");
+    expect(screen.getByRole("alert").textContent).toBe("Email already exists");
+    expect(screen.getByLabelText<HTMLInputElement>(/^name/i).value).toBe("John Doe");
+    expect(screen.getByLabelText<HTMLInputElement>(/^email/i).value).toBe("john@example.com");
     expect(screen.getByRole("button", { name: "Create Lead" })).toHaveProperty("disabled", false);
   });
 });
@@ -95,7 +97,7 @@ describe("LeadTable", () => {
     first.getByText("john@example.com");
     first.getByText("9876543210");
     first.getByText("Sep 25, 2026");
-    expect(first.getByRole<HTMLSelectElement>("combobox").value).toBe("NEW");
+    expect(screen.getByLabelText<HTMLSelectElement>("Status for John Doe").value).toBe("NEW");
   });
 
   it("shows a dash when phone is missing", () => {
@@ -105,12 +107,24 @@ describe("LeadTable", () => {
     within(secondRow).getByText("—");
   });
 
+  it("shows readable status labels", () => {
+    render(<LeadTable leads={leads} onStatusUpdate={vi.fn()} />);
+
+    const options = within(screen.getByLabelText("Status for John Doe")).getAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual([
+      "New",
+      "Contacted",
+      "Qualified",
+      "Converted",
+      "Lost",
+    ]);
+  });
+
   it("calls onStatusUpdate with the lead id and new status", async () => {
     const onStatusUpdate = vi.fn();
     render(<LeadTable leads={leads} onStatusUpdate={onStatusUpdate} />);
 
-    const secondRow = screen.getAllByRole("row")[2];
-    await userEvent.selectOptions(within(secondRow).getByRole("combobox"), "QUALIFIED");
+    await userEvent.selectOptions(screen.getByLabelText("Status for Jane Foster"), "QUALIFIED");
 
     expect(onStatusUpdate).toHaveBeenCalledWith(2, "QUALIFIED");
   });

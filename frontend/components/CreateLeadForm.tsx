@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { NewLead } from "@/lib/api";
 
 interface CreateLeadFormProps {
-  onSubmit: (data: { name: string; email: string; phone: string }) => void;
+  // Rejects with the reason when the lead could not be created
+  onSubmit: (data: NewLead) => Promise<void>;
 }
 
 export default function CreateLeadForm({ onSubmit }: CreateLeadFormProps) {
@@ -11,23 +13,26 @@ export default function CreateLeadForm({ onSubmit }: CreateLeadFormProps) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !email) {
-      alert("Name and email are required");
+    if (!name.trim() || !email.trim()) {
+      setError("Name and email are required");
       return;
     }
 
     try {
       setLoading(true);
+      setError("");
       await onSubmit({ name, email, phone });
       setName("");
       setEmail("");
       setPhone("");
-    } catch (error) {
-      console.error("Error:", error);
+    } catch (err) {
+      // Keep the input so the user can correct it and retry
+      setError(err instanceof Error ? err.message : "Failed to create lead");
     } finally {
       setLoading(false);
     }
@@ -35,9 +40,21 @@ export default function CreateLeadForm({ onSubmit }: CreateLeadFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {error && (
+        <div
+          role="alert"
+          className="px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-sm text-red-700"
+        >
+          {error}
+        </div>
+      )}
+
       <div>
-        <label className="block text-sm font-semibold text-black mb-2">Name *</label>
+        <label htmlFor="lead-name" className="block text-sm font-semibold text-black mb-2">
+          Name *
+        </label>
         <input
+          id="lead-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -47,8 +64,11 @@ export default function CreateLeadForm({ onSubmit }: CreateLeadFormProps) {
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-black mb-2">Email *</label>
+        <label htmlFor="lead-email" className="block text-sm font-semibold text-black mb-2">
+          Email *
+        </label>
         <input
+          id="lead-email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -58,8 +78,11 @@ export default function CreateLeadForm({ onSubmit }: CreateLeadFormProps) {
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-black mb-2">Phone</label>
+        <label htmlFor="lead-phone" className="block text-sm font-semibold text-black mb-2">
+          Phone
+        </label>
         <input
+          id="lead-phone"
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
