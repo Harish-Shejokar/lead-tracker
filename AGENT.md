@@ -6,8 +6,8 @@ The project was built in two phases, both with Claude:
 
 | Phase | Dates | Commits | Who / what |
 |---|---|---|---|
-| 1. Initial build | Sep 23–28, 2026 | `bc0ba1c` … `81b2cbe` (5 commits) | Code generated with **Claude (claude.ai chat)**. Harish adapted it, integrated it, tested it and deployed it. |
-| 2. Review, tests, fixes, docs | Sep 28, 2026 | `1f2d74d` … this commit (9 commits) | Generated with **Claude Code**, then reviewed and committed by Harish. These commits carry a `Co-Authored-By: Claude` trailer. |
+| 1. Initial build | Sep 23–28, 2026 | `f12f558` … `110b296` (5 commits) | Code generated with **Claude (claude.ai chat)**. Harish adapted it, integrated it, tested it and deployed it. |
+| 2. Review, tests, fixes, docs | Sep 28, 2026 | `13c5948` … this commit (10 commits) | Generated with **Claude Code**, then reviewed and committed by Harish. These commits carry a `Co-Authored-By: Claude` trailer. |
 
 ## AI tools used
 
@@ -59,14 +59,14 @@ Prompts are quoted verbatim apart from typo fixes.
 - **Express API** (`backend/src/server.ts`): create, list and search, get by id, and update status.
 - **Next.js UI**: `app/page.tsx`, `components/CreateLeadForm.tsx`, `components/LeadTable.tsx` and `lib/api.ts`.
 - **Deployment config and steps**: including `frontend/netlify.toml`, which turned out to be unused because the frontend was deployed on Vercel.
-- **CORS fix**: the change in `81b2cbe` and its commit message.
+- **CORS fix**: the change in `110b296` and its commit message.
 
 ### Phase 1: done by Harish
 
 - **Scope and plan:** set the time budget and scope, and picked from Claude's options (raw `pg` rather than Prisma, Neon rather than Supabase, Render rather than Railway).
 - **Setup:** set up the project structure and dependencies, and put the generated code together into a working app.
 - **Database:** provisioned the Neon database and created the `leads` table in it.
-- **API testing:** tested every endpoint by hand in Postman (`94620de`).
+- **API testing:** tested every endpoint by hand in Postman (`3e60ea6`).
 - **Deployment:** deployed the API on Render and the frontend on Vercel, with environment variables.
 - **Debugging:** noticed the live frontend couldn't reach the API and traced it to CORS with Claude's help.
 - **Commits:** made all Phase 1 commits.
@@ -77,14 +77,14 @@ Every change was reviewed before committing. Each was also checked by running th
 
 | Commit | What was generated |
 |---|---|
-| `1f2d74d` test: add api tests | Split `backend/src/server.ts` into `app.ts` (`createApp(pool)`) and a small `server.ts`. Wrote `backend/tests/leads.test.ts`. Added the missing `@types/cors` and `@types/pg`, which fixed `npm run build`. |
-| `51f08bd` test: add frontend tests | Vitest config, setup file and `frontend/__tests__/*` |
-| `5e39141` fix: validate lead input and ids | Input and id validation, `CORS_ORIGIN`, error logging, `CHECK` constraint in `schema.sql`, and the matching tests |
-| `5bab9a2` fix: show api errors… | API error messages in the UI, the form keeping input on failure, a load-error state, debounced search, ignoring stale responses, a single status list, accessible labels, mobile table scrolling, and the page title |
-| `09c0baf` chore: remove unused netlify config… | Root `.gitignore`, `.env.example` files, and removal of `netlify.toml`, the tracked `.DS_Store` and the boilerplate README |
-| `29b27fa` ci | GitHub Actions workflow |
-| `e0681cc` docs: add readme | `README.md` |
-| `b8f0605` + this commit | `AGENT.md` |
+| `13c5948` test: add api tests | Split `backend/src/server.ts` into `app.ts` (`createApp(pool)`) and a small `server.ts`. Wrote `backend/tests/leads.test.ts`. Added the missing `@types/cors` and `@types/pg`, which fixed `npm run build`. |
+| `a634e1b` test: add frontend tests | Vitest config, setup file and `frontend/__tests__/*` |
+| `fa6f503` fix: validate lead input and ids | Input and id validation, `CORS_ORIGIN`, error logging, `CHECK` constraint in `schema.sql`, and the matching tests |
+| `30921cd` fix: show api errors… | API error messages in the UI, the form keeping input on failure, a load-error state, debounced search, ignoring stale responses, a single status list, accessible labels, mobile table scrolling, and the page title |
+| `c4306c4` chore: remove unused netlify config… | Root `.gitignore`, `.env.example` files, and removal of `netlify.toml`, the tracked `.DS_Store` and the boilerplate README |
+| `7112d92` ci | GitHub Actions workflow |
+| `5fe7c69` docs: add readme | `README.md` |
+| `14b2104`, `f5e5924` and this commit | `AGENT.md` |
 
 ### Phase 2: done by Harish
 
