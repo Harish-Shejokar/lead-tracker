@@ -1,30 +1,44 @@
 # AGENT.md: How AI was used in this project
 
-This file records which AI tools were used, the prompts given to them, which parts they generated, which parts were written by hand, and the main engineering decisions.
+This file records which AI tools were used, the prompts given to them, which parts they generated, which parts were done by hand, and the main engineering decisions.
 
-The project was built in two phases:
+The project was built in two phases, both with Claude:
 
 | Phase | Dates | Commits | Who / what |
 |---|---|---|---|
-| 1. Initial build | Sep 23–28, 2026 | `bc0ba1c` … `81b2cbe` (5 commits) | Written and deployed by Harish (see [Phase 1](#phase-1-initial-build)) |
-| 2. Review, tests, fixes, docs | Sep 28, 2026 | `1f2d74d` … this commit (8 commits) | Generated with Claude Code, then reviewed and committed by Harish. These commits carry a `Co-Authored-By: Claude` trailer. |
+| 1. Initial build | Sep 23–28, 2026 | `bc0ba1c` … `81b2cbe` (5 commits) | Code generated with **Claude (claude.ai chat)**. Harish adapted it, integrated it, tested it and deployed it. |
+| 2. Review, tests, fixes, docs | Sep 28, 2026 | `1f2d74d` … this commit (9 commits) | Generated with **Claude Code**, then reviewed and committed by Harish. These commits carry a `Co-Authored-By: Claude` trailer. |
 
 ## AI tools used
 
-| Tool | Model | Used for |
+| Tool | Phase | Used for |
 |---|---|---|
-| **Claude Code** (VS Code extension) | Claude Opus 5.5 | Phase 2: reviewing the project against the assignment, writing tests, bug fixes, refactoring for testability, CI, README and this file |
-| **TODO(Harish): tools used in Phase 1** | | e.g. ChatGPT / Claude chat / Copilot, and what each was used for. Write "none" if Phase 1 was written without AI. |
+| **Claude** (claude.ai chat) | 1 | Roadmap and time-boxed plan, stack and hosting suggestions, generating the schema, Express API, Next.js page and components and deployment config, diagnosing the production CORS error, and a final checklist |
+| **Claude Code** (VS Code extension, Claude Opus 5.5) | 2 | Reviewing the project against the assignment, writing tests, bug fixes, refactoring for testability, CI, README and this file |
 
 `frontend/AGENTS.md` and `frontend/CLAUDE.md` are generated automatically by Next.js (`create-next-app` / `next dev`). They are instructions for AI coding agents, not project documentation.
 
 ## Prompts
 
+Prompts are quoted verbatim apart from typo fixes.
+
+### Phase 1: Claude (claude.ai chat)
+
+1. *"This is the assignment I got, and I have to complete this task properly. As you know, my skills are Node.js, React.js, Next.js, MySQL, MongoDB, TypeScript and other advanced skills. So give me a roadmap to complete this task and to impress the recruiter, a step-by-step approach."* (The assignment PDF was attached.)
+   Claude recommended PostgreSQL over MongoDB and a separate `backend/` + `frontend/` structure. It also gave a day-by-day plan, a list of "what impresses reviewers", and outlines for README and AGENT.md.
+2. *"3 days will be the deadline for this task: Wed, Thu and Fri, and on these days I can give max 2–3 hours. Is it possible? And on Saturday I will give 4–6 hours, but for polishing. First priority is to complete the task, whatever is required, in 3 days. And it's fine if a specific tech stack is required that I don't know, e.g. Postgres I have worked with but not in depth, but I can learn during the task. So don't think about the tech stack; whatever is given and required, I will do only that. Make the roadmap according to it."*
+   Claude produced a time-boxed plan:
+   - A hosted Neon or Supabase Postgres from the start.
+   - Raw SQL with `pg` instead of Prisma, to save time.
+   - Backend on Wednesday, frontend on Thursday, deployment and docs on Friday, and tests and polish on Saturday.
+3. **Code-generation prompts.** Follow-up prompts asked Claude to write the Postgres schema, the Express endpoints, the Next.js page and components and the deployment configuration. The exact wording isn't preserved in the exported chat.
+4. **The deployed frontend couldn't reach the API.** Harish shared the Express server code. The exact wording isn't preserved. Claude identified that CORS only allowed `http://localhost:3000`. It suggested either listing the Vercel URL or allowing all origins, plus the commit message `fix: update cors to allow deployed frontend url`. Harish chose to allow all origins.
+5. *"Now what's next?"*
+   Claude gave a final checklist: commit and push, test the live app, write README and AGENT.md, and check for 10+ commits.
+
 ### Phase 2: Claude Code
 
-These are the prompts given to Claude Code, in order. They are verbatim apart from typo fixes. The assignment PDF was attached to the first one.
-
-1. *"This is the assignment I got. Check if my project is up to the mark or not."*
+1. *"This is the assignment I got. Check if my project is up to the mark or not."* (The assignment PDF was attached.)
    Claude reviewed the repo against each requirement. It ran both builds, found that the backend `tsc` build was failing, checked the live API, and reported the missing deliverables (README, AGENT.md, tests, commit count) and the code issues it found.
 2. *"Is my project done, everything according to requirements?"*
    Claude re-checked the repo state and gave a requirement-by-requirement checklist.
@@ -34,14 +48,30 @@ These are the prompts given to Claude Code, in order. They are verbatim apart fr
    Claude made two test commits.
 5. *"Let's go to the next steps and complete this project, and also commit where required. After completion, tell me what's remaining."* (The live Vercel and Render URLs were given as a follow-up.)
    Claude made the bug fixes, cleanup, CI, README and AGENT.md commits.
+6. *"I have used Claude, and these are the changes below."* (The exported Phase 1 chat was pasted.)
+   Claude asked which parts the chat had generated code for, then wrote the Phase 1 sections of this file.
 
-### Phase 1
+## AI-generated vs. manually done
 
-**TODO(Harish):** list the main prompts you used while building the first version, or write "none". For example: *"Create an Express + TypeScript API for leads with Postgres: create, list with search, update status"*.
+### Phase 1: generated by Claude (claude.ai chat), adapted by Harish
 
-## AI-generated vs. manually written
+- **Database schema** (`backend/src/schema.sql`): the `leads` table.
+- **Express API** (`backend/src/server.ts`): create, list and search, get by id, and update status.
+- **Next.js UI**: `app/page.tsx`, `components/CreateLeadForm.tsx`, `components/LeadTable.tsx` and `lib/api.ts`.
+- **Deployment config and steps**: including `frontend/netlify.toml`, which turned out to be unused because the frontend was deployed on Vercel.
+- **CORS fix**: the change in `81b2cbe` and its commit message.
 
-### Generated with Claude Code (Phase 2)
+### Phase 1: done by Harish
+
+- **Scope and plan:** set the time budget and scope, and picked from Claude's options (raw `pg` rather than Prisma, Neon rather than Supabase, Render rather than Railway).
+- **Setup:** set up the project structure and dependencies, and put the generated code together into a working app.
+- **Database:** provisioned the Neon database and created the `leads` table in it.
+- **API testing:** tested every endpoint by hand in Postman (`94620de`).
+- **Deployment:** deployed the API on Render and the frontend on Vercel, with environment variables.
+- **Debugging:** noticed the live frontend couldn't reach the API and traced it to CORS with Claude's help.
+- **Commits:** made all Phase 1 commits.
+
+### Phase 2: generated with Claude Code
 
 Every change was reviewed before committing. Each was also checked by running the tests, the TypeScript compiler and the production builds.
 
@@ -54,29 +84,23 @@ Every change was reviewed before committing. Each was also checked by running th
 | `09c0baf` chore: remove unused netlify config… | Root `.gitignore`, `.env.example` files, and removal of `netlify.toml`, the tracked `.DS_Store` and the boilerplate README |
 | `29b27fa` ci | GitHub Actions workflow |
 | `e0681cc` docs: add readme | `README.md` |
-| this commit | `AGENT.md` (the TODO sections are for Harish to complete) |
+| `b8f0605` + this commit | `AGENT.md` |
 
-### Written by Harish (Phase 1)
+### Phase 2: done by Harish
 
-- **Database schema** (`backend/src/schema.sql`): the `leads` table with a unique email and the status column.
-- **Express API**: all four endpoints (create, list and search, get by id, update status) with parameterised SQL.
-- **Next.js UI**: the Lead Tracker page, `CreateLeadForm`, `LeadTable` and the API client in `lib/api.ts`.
-- **Manual API testing** in Postman.
-- **Deployment**: the Neon PostgreSQL database, the Render web service for the API, and the Vercel project for the frontend, including environment variables and the CORS fix for the deployed frontend.
-
-**TODO(Harish):** adjust this list if any of these parts were AI-assisted.
-
-In Phase 2, Harish chose which suggestions to act on, supplied the deployment URLs, and approved each commit.
+- Supplied the deployment URLs and the Phase 1 chat history.
+- Answered which parts of Phase 1 were AI-generated.
+- Chose which suggestions to act on and approved each commit.
 
 ## Key engineering decisions
 
 | Decision | Made in | Reasoning |
 |---|---|---|
-| PostgreSQL over MongoDB | Phase 1 | Leads are fixed-shape, relational records. Postgres enforces uniqueness (`UNIQUE email`) and allowed values (`CHECK status`) in the database itself. |
-| Express + raw SQL via `pg`, no ORM | Phase 1 | Four simple queries don't justify an ORM. Every query is parameterised (`$1`, `$2`) to prevent SQL injection. |
+| PostgreSQL over MongoDB | Phase 1 (Claude suggested, Harish chose) | Leads are fixed-shape, relational records. Postgres enforces uniqueness (`UNIQUE email`) and allowed values (`CHECK status`) in the database itself. |
+| Raw SQL via `pg` instead of Prisma | Phase 1 (Harish, from Claude's time-saving option) | Four simple queries don't justify an ORM, and learning Prisma under a 3-day deadline was a risk. Every query is parameterised (`$1`, `$2`) to prevent SQL injection. |
 | Search in the backend with `ILIKE`, plus a status filter | Phase 1 | Case-insensitive partial matching on name or email with no extra infrastructure. The trade-off is covered in the README. |
 | Status is a fixed list, starting at `NEW` | Phase 1 | The API always creates leads as `NEW` and rejects unknown statuses. Phase 2 added a database `CHECK` so bad data can't bypass the API. |
-| Next.js (React + TypeScript) on Vercel, API on Render, database on Neon | Phase 1 | Meets the React + TypeScript requirement, and all three have free tiers that deploy from GitHub. |
+| Neon (database), Render (API), Vercel (frontend) | Phase 1 (Harish, from Claude's shortlist) | Hosted from day one, so no local Postgres setup to debug. All three have free tiers that deploy from GitHub. |
 | `createApp(pool)` dependency injection | Phase 2 | The routes can then be tested with an in-memory database, with no real Postgres needed and no risk to production data. |
 | pg-mem for API tests rather than mocking `pool.query` | Phase 2 | Mocks would only check the SQL text. pg-mem runs the real `schema.sql` and queries, so it catches broken SQL, duplicate-email errors (`23505`) and `CHECK` violations. |
 | Vitest for both backend and frontend | Phase 2 | One test runner across the repo. The Next.js docs recommend it, and TypeScript works without extra config. |
@@ -87,11 +111,26 @@ In Phase 2, Harish chose which suggestions to act on, supplied the deployment UR
 
 ## Verifying AI output, and mistakes caught
 
+### Issues in the Phase 1 AI output (found and fixed in Phase 2)
+
+- **Wrong completion claim:** the chat's final checklist said "You're Done!" and listed README, AGENT.md and 10+ commits as complete. The repo actually had 5 commits and neither document.
+- **Build failure:** `npm run build` in the backend failed because `@types/cors` and `@types/pg` were missing.
+- **UI bugs in the generated frontend:**
+  - A failed create, such as a duplicate email, cleared the form and showed a generic alert.
+  - Every keystroke in search sent a request, and a slower earlier response could overwrite newer results.
+  - A failed load showed "No leads found" instead of an error.
+- **API returned 500 instead of 400:** a non-numeric id (e.g. `/api/leads/abc`) caused a 500 error.
+- **CORS config:** the suggested `origin: "*"` with `credentials: true` is an invalid pair for credentialed requests. It only worked because the app sends no cookies. It was replaced by the `CORS_ORIGIN` setting.
+- **Unused config:** the generated `netlify.toml` used a single-page-app rewrite (`/* → /index.html`) that doesn't fit Next.js. The frontend was deployed on Vercel anyway, so the file was removed.
+- **No tests:** the roadmap planned tests for Saturday, but none were in the repo.
+
+### How Phase 2 output was verified
+
 - **Tests were checked for real failures.** For each suite, the app code was deliberately broken (sort order, duplicate-email handling, the status dropdown, the debounce, the stale-response guard, the `CHECK` constraint). The relevant tests failed each time, then the code was restored.
 - **Builds and live checks:** `tsc`, `next build`, both test suites, and `npm ci --dry-run` (to confirm the lockfiles CI uses) were run before each commit. The live API and the deployed frontend's API URL and CORS headers were checked with `curl`.
-- **Mistakes caught during Phase 2:**
-  - **Wrong frontend host:** Claude assumed the frontend was on Netlify because `netlify.toml` existed. It was actually on Vercel, so the unused config was removed.
+- **Mistakes Claude Code made and corrected:**
+  - **Wrong frontend host:** it assumed the frontend was on Netlify because `netlify.toml` existed. It was actually on Vercel.
   - **Wrong database host:** the README draft said the database was on Render. The `DATABASE_URL` hostname (only the hostname was inspected) showed Neon, and the README was corrected before committing.
   - **Lost schema edit:** while double-checking the schema test, a backup/restore step ran `git checkout` on `schema.sql` and wiped the uncommitted edit. It was noticed and rewritten before the commit.
   - **Dependency and config issues:** Vitest 5 needed `@types/node` 22, so it was bumped to match the Node 22 runtime. A Vite warning about `vite-tsconfig-paths` led to using Vite's built-in `resolve.tsconfigPaths` instead.
-- **Things AI did not decide:** the tech stack, the hosting providers, and what to submit.
+- **Harish's decisions:** the final choice of stack and hosts, the scope and timeline, and what to submit.
