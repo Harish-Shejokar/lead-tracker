@@ -3,7 +3,7 @@ import path from "path";
 import request from "supertest";
 import { newDb } from "pg-mem";
 import { Pool } from "pg";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app";
 
 const schema = fs.readFileSync(path.join(__dirname, "../src/schema.sql"), "utf8");
@@ -28,6 +28,15 @@ beforeEach(() => {
   pool = createTestPool();
   app = createApp(pool);
 });
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+// Keeps expected 500-path error logs out of the test output
+function silenceErrorLogs() {
+  return vi.spyOn(console, "error").mockImplementation(() => {});
+}
 
 function seedLead(name: string, email: string, status: string, createdAt: string) {
   return pool.query(
@@ -80,6 +89,19 @@ describe("POST /api/leads", () => {
     expect(res.body.status).toBe("NEW");
   });
 
+  it("trims the name and stores the email in lowercase", async () => {
+    const res = await request(app)
+      .post("/api/leads")
+      .send({ name: "  John Doe ", email: " John@Example.COM ", phone: " 9876543210 " });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      name: "John Doe",
+      email: "john@example.com",
+      phone: "9876543210",
+    });
+  });
+
   it.each([
     ["name", { email: "john@example.com" }],
     ["email", { name: "John Doe" }],
@@ -104,13 +126,40 @@ describe("POST /api/leads", () => {
     expect(res.body).toEqual({ error: "Email already exists" });
   });
 
-  it("returns 500 when the database fails", async () => {
+  it("treats emails that differ only in case as duplicates", async () => {
+    await request(app).post("/api/leads").send({ name: "John Doe", email: "john@example.com" });
+
+    const res = await request(app)
+      .post("/api/leads")
+      .send({ name: "John Doe", email: "JOHN@example.com" });
+
+    expect(res.status).toBe(409);
+  });
+
+  it.each([
+    ["name is only whitespace", { name: "   ", email: "john@example.com" }, "Name and email are required"],
+    ["email is not a string", { name: "John Doe", email: 42 }, "Name and email are required"],
+    ["name is too long", { name: "a".repeat(256), email: "john@example.com" }, "Name must be at most 255 characters"],
+    ["email is malformed", { name: "John Doe", email: "john@" }, "Email is invalid"],
+    ["phone is too long", { name: "John Doe", email: "john@example.com", phone: "1".repeat(21) }, "Phone must be at most 20 characters"],
+    ["phone is not a string", { name: "John Doe", email: "john@example.com", phone: 123 }, "Phone is invalid"],
+  ])("returns 400 when %s", async (_case, body, error) => {
+    const res = await request(app).post("/api/leads").send(body);
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error });
+  });
+
+  it("returns 500 and logs the error when the database fails", async () => {
+    const errorLog = silenceErrorLogs();
+
     const res = await request(createApp(brokenPool))
       .post("/api/leads")
       .send({ name: "John Doe", email: "john@example.com" });
 
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: "Internal server error" });
+    expect(errorLog).toHaveBeenCalledWith(new Error("connection refused"));
   });
 });
 
@@ -165,6 +214,13 @@ describe("GET /api/leads", () => {
     expect(res.body.map((l: { name: string }) => l.name)).toEqual(["Harry Potter"]);
   });
 
+  it("returns 400 for an unknown status filter", async () => {
+    const res = await request(app).get("/api/leads").query({ status: "WON" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid status" });
+  });
+
   it("returns an empty list when nothing matches", async () => {
     const res = await request(app).get("/api/leads").query({ search: "nobody" });
 
@@ -173,6 +229,8 @@ describe("GET /api/leads", () => {
   });
 
   it("returns 500 when the database fails", async () => {
+    silenceErrorLogs();
+
     const res = await request(createApp(brokenPool)).get("/api/leads");
 
     expect(res.status).toBe(500);
@@ -194,6 +252,13 @@ describe("GET /api/leads/:id", () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "Lead not found" });
+  });
+
+  it.each(["abc", "0", "1.5", "-1"])("returns 400 for invalid id %s", async (id) => {
+    const res = await request(app).get(`/api/leads/${id}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid lead id" });
   });
 });
 
@@ -236,5 +301,42 @@ describe("PATCH /api/leads/:id/status", () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "Lead not found" });
+  });
+
+  it("returns 400 for a non-numeric id", async () => {
+    const res = await request(app).patch("/api/leads/abc/status").send({ status: "LOST" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid lead id" });
+  });
+});
+
+describe("schema", () => {
+  it("rejects a status outside the allowed list", async () => {
+    await expect(
+      pool.query("INSERT INTO leads (name, email, status) VALUES ('John', 'john@example.com', 'WON')")
+    ).rejects.toThrow();
+  });
+});
+
+describe("CORS", () => {
+  it("allows any origin by default", async () => {
+    const res = await request(app).get("/health").set("Origin", "https://anywhere.example");
+
+    expect(res.headers["access-control-allow-origin"]).toBe("*");
+  });
+
+  it("only allows the configured origins", async () => {
+    const restricted = createApp(pool, ["https://lead-tracker.example"]);
+
+    const allowed = await request(restricted)
+      .get("/health")
+      .set("Origin", "https://lead-tracker.example");
+    const blocked = await request(restricted)
+      .get("/health")
+      .set("Origin", "https://evil.example");
+
+    expect(allowed.headers["access-control-allow-origin"]).toBe("https://lead-tracker.example");
+    expect(blocked.headers["access-control-allow-origin"]).toBeUndefined();
   });
 });
